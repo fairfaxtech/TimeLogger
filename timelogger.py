@@ -80,5 +80,73 @@ def stop():
     minutes = int((duration % 3600) // 60)
     click.echo(f"Session stopped. Duration: {hours}h {minutes}m")
 
+@cli.command()
+@click.option('--category', '-c', help='Filter by category')
+@click.option('--today', is_flag=True, help='Show only today\'s sessions')
+def report(category, today):
+    """Generate time tracking report"""
+    data = load_data()
+
+    if not data['sessions']:
+        click.echo("No completed sessions found.")
+        return
+
+    sessions = data['sessions']
+
+    # Filter by category if specified
+    if category:
+        sessions = [s for s in sessions if s['category'] == category]
+
+    # Filter by today if specified
+    if today:
+        today_date = datetime.now().date()
+        sessions = [s for s in sessions if datetime.fromisoformat(s['start_time']).date() == today_date]
+
+    if not sessions:
+        click.echo("No sessions match the criteria.")
+        return
+
+    # Calculate totals
+    total_time = sum(s['duration_seconds'] for s in sessions)
+    total_hours = int(total_time // 3600)
+    total_minutes = int((total_time % 3600) // 60)
+
+    click.echo(f"\n=== Time Report ===")
+    click.echo(f"Total sessions: {len(sessions)}")
+    click.echo(f"Total time: {total_hours}h {total_minutes}m")
+    click.echo()
+
+    # Group by category
+    categories = {}
+    for session in sessions:
+        cat = session['category']
+        if cat not in categories:
+            categories[cat] = []
+        categories[cat].append(session)
+
+    for cat, cat_sessions in categories.items():
+        cat_time = sum(s['duration_seconds'] for s in cat_sessions)
+        cat_hours = int(cat_time // 3600)
+        cat_minutes = int((cat_time % 3600) // 60)
+        click.echo(f"{cat}: {cat_hours}h {cat_minutes}m ({len(cat_sessions)} sessions)")
+
+@cli.command()
+def status():
+    """Show current tracking status"""
+    data = load_data()
+
+    if data['current_session']:
+        current = data['current_session']
+        start_time = datetime.fromisoformat(current['start_time'])
+        elapsed = (datetime.now() - start_time).total_seconds()
+        hours = int(elapsed // 3600)
+        minutes = int((elapsed % 3600) // 60)
+
+        click.echo(f"Currently tracking: {current['task']}")
+        click.echo(f"Category: {current['category']}")
+        click.echo(f"Elapsed time: {hours}h {minutes}m")
+    else:
+        click.echo("No active session.")
+
 if __name__ == '__main__':
     cli()
