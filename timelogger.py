@@ -14,14 +14,28 @@ DATA_FILE = 'timelogger_data.json'
 def load_data():
     """Load existing data from file"""
     if os.path.exists(DATA_FILE):
-        with open(DATA_FILE, 'r') as f:
-            return json.load(f)
+        try:
+            with open(DATA_FILE, 'r') as f:
+                data = json.load(f)
+                # Ensure data structure is valid
+                if 'sessions' not in data:
+                    data['sessions'] = []
+                if 'current_session' not in data:
+                    data['current_session'] = None
+                return data
+        except (json.JSONDecodeError, IOError) as e:
+            click.echo(f"Warning: Could not read data file: {e}")
+            return {'sessions': [], 'current_session': None}
     return {'sessions': [], 'current_session': None}
 
 def save_data(data):
     """Save data to file"""
-    with open(DATA_FILE, 'w') as f:
-        json.dump(data, f, indent=2)
+    try:
+        with open(DATA_FILE, 'w') as f:
+            json.dump(data, f, indent=2)
+    except IOError as e:
+        click.echo(f"Error: Could not save data: {e}")
+        raise click.Abort()
 
 @click.group()
 def cli():
@@ -147,6 +161,29 @@ def status():
         click.echo(f"Elapsed time: {hours}h {minutes}m")
     else:
         click.echo("No active session.")
+
+@cli.command()
+@click.option('--limit', '-l', default=10, help='Number of recent sessions to show')
+def list(limit):
+    """List recent sessions"""
+    data = load_data()
+
+    if not data['sessions']:
+        click.echo("No completed sessions found.")
+        return
+
+    # Get most recent sessions
+    recent_sessions = data['sessions'][-limit:]
+    recent_sessions.reverse()
+
+    click.echo(f"\n=== Recent Sessions ===")
+    for session in recent_sessions:
+        start_time = datetime.fromisoformat(session['start_time'])
+        duration = session['duration_seconds']
+        hours = int(duration // 3600)
+        minutes = int((duration % 3600) // 60)
+
+        click.echo(f"{start_time.strftime('%Y-%m-%d %H:%M')} - {session['task']} ({session['category']}) - {hours}h {minutes}m")
 
 if __name__ == '__main__':
     cli()
