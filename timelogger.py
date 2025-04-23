@@ -177,13 +177,76 @@ def list(limit):
     recent_sessions.reverse()
 
     click.echo(f"\n=== Recent Sessions ===")
-    for session in recent_sessions:
+    for i, session in enumerate(recent_sessions):
         start_time = datetime.fromisoformat(session['start_time'])
         duration = session['duration_seconds']
         hours = int(duration // 3600)
         minutes = int((duration % 3600) // 60)
 
-        click.echo(f"{start_time.strftime('%Y-%m-%d %H:%M')} - {session['task']} ({session['category']}) - {hours}h {minutes}m")
+        session_id = len(data['sessions']) - i
+        click.echo(f"[{session_id}] {start_time.strftime('%Y-%m-%d %H:%M')} - {session['task']} ({session['category']}) - {hours}h {minutes}m")
+
+@cli.command()
+@click.argument('session_id', type=int)
+@click.option('--force', '-f', is_flag=True, help='Skip confirmation prompt')
+def delete(session_id, force):
+    """Delete a session by ID (use 'list' command to see IDs)"""
+    data = load_data()
+
+    if not data['sessions']:
+        click.echo("No sessions to delete.")
+        return
+
+    if session_id < 1 or session_id > len(data['sessions']):
+        click.echo(f"Invalid session ID. Valid range: 1-{len(data['sessions'])}")
+        return
+
+    session_index = session_id - 1
+    session = data['sessions'][session_index]
+
+    if not force:
+        start_time = datetime.fromisoformat(session['start_time'])
+        duration = session['duration_seconds']
+        hours = int(duration // 3600)
+        minutes = int((duration % 3600) // 60)
+
+        click.echo(f"About to delete session:")
+        click.echo(f"  {start_time.strftime('%Y-%m-%d %H:%M')} - {session['task']} ({session['category']}) - {hours}h {minutes}m")
+
+        if not click.confirm("Are you sure?"):
+            click.echo("Cancelled.")
+            return
+
+    # Remove the session
+    del data['sessions'][session_index]
+    save_data(data)
+
+    click.echo(f"Session {session_id} deleted.")
+
+@cli.command()
+@click.option('--force', '-f', is_flag=True, help='Skip confirmation prompt')
+def clear(force):
+    """Clear all session data"""
+    data = load_data()
+
+    if not data['sessions'] and not data['current_session']:
+        click.echo("No data to clear.")
+        return
+
+    if not force:
+        session_count = len(data['sessions'])
+        active_session = " and 1 active session" if data['current_session'] else ""
+
+        if not click.confirm(f"This will delete {session_count} sessions{active_session}. Are you sure?"):
+            click.echo("Cancelled.")
+            return
+
+    # Clear all data
+    data['sessions'] = []
+    data['current_session'] = None
+    save_data(data)
+
+    click.echo("All data cleared.")
 
 if __name__ == '__main__':
     cli()

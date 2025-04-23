@@ -40,6 +40,28 @@ python timelogger.py report --category development
 
 # View today's sessions only
 python timelogger.py report --today
+
+# List recent sessions with IDs
+python timelogger.py list
+
+# List only last 5 sessions
+python timelogger.py list --limit 5
+```
+
+### Data Management
+
+```bash
+# Delete a specific session (use list command to see IDs)
+python timelogger.py delete 5
+
+# Force delete without confirmation
+python timelogger.py delete 5 --force
+
+# Clear all data
+python timelogger.py clear
+
+# Clear all data without confirmation
+python timelogger.py clear --force
 ```
 
 ## Installation
